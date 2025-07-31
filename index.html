@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ubicación en Tiempo Real</title>
+    <title>Ubicación en Tiempo Real y WhatsApp</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -19,10 +19,11 @@
         }
         .controls {
             display: flex;
+            flex-direction: column;
             gap: 15px;
             margin-top: 20px;
         }
-        button {
+        button, a.button {
             padding: 12px 25px;
             font-size: 1.1em;
             color: white;
@@ -30,6 +31,10 @@
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         #startButton {
             background-color: #28a745;
@@ -39,10 +44,16 @@
         }
         #stopButton {
             background-color: #dc3545;
-            display: none; /* Inicialmente oculto */
         }
         #stopButton:hover {
             background-color: #c82333;
+        }
+        #whatsapp-link {
+            background-color: #25d366;
+            display: none; /* Inicialmente oculto */
+        }
+        #whatsapp-link:hover {
+            background-color: #128c7e;
         }
         #status {
             margin-top: 30px;
@@ -73,11 +84,12 @@
     </style>
 </head>
 <body>
-    <h1>Rastreo de Ubicación en Tiempo Real</h1>
-    <p>Haz clic en "Iniciar rastreo" para comenzar a recibir actualizaciones de tu ubicación.</p>
+    <h1>Ubicación en Tiempo Real y WhatsApp</h1>
+    <p>Haz clic en "Iniciar Rastreo" para comenzar a enviar actualizaciones de tu ubicación.</p>
     <div class="controls">
         <button id="startButton">Iniciar Rastreo</button>
-        <button id="stopButton">Detener Rastreo</button>
+        <button id="stopButton" style="display: none;">Detener Rastreo</button>
+        <a id="whatsapp-link" class="button" href="#" target="_blank">Compartir por WhatsApp</a>
     </div>
     <div id="status"></div>
     <div id="location-data"></div>
@@ -85,18 +97,21 @@
     <script>
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
+        const whatsappLink = document.getElementById('whatsapp-link');
         const statusDiv = document.getElementById('status');
         const locationDataDiv = document.getElementById('location-data');
         
-        let watchId; // Variable para almacenar el ID del rastreador
+        let watchId = null;
+        const phoneNumber = '50234896175'; // Número de teléfono de Guatemala sin el signo +
 
-        // Función para mostrar la ubicación en la pantalla
         function showPosition(position) {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
             const accuracy = position.coords.accuracy;
 
             const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+            const whatsappMessage = encodeURIComponent(`¡Hola! Mi ubicación actual es: Latitud ${latitude}, Longitud ${longitude}. Puedes verla aquí: ${googleMapsUrl}`);
+            const whatsappShareUrl = `https://wa.me/${phoneNumber}?text=${whatsappMessage}`;
 
             locationDataDiv.innerHTML = `
                 <p><strong>Latitud:</strong> ${latitude}</p>
@@ -104,22 +119,24 @@
                 <p><strong>Precisión:</strong> Aproximadamente ${accuracy.toFixed(2)} metros</p>
                 <a id="map-link" href="${googleMapsUrl}" target="_blank">Ver en Google Maps</a>
             `;
-            statusDiv.textContent = 'Actualizando ubicación...';
+            statusDiv.textContent = 'Rastreo activo. Ubicación actualizada.';
+            
+            // Actualizar el enlace de WhatsApp con la nueva ubicación
+            whatsappLink.href = whatsappShareUrl;
         }
 
-        // Función para manejar errores
         function showError(error) {
             let errorMessage = 'Error al obtener la ubicación: ';
             switch(error.code) {
                 case error.PERMISSION_DENIED:
-                    errorMessage += 'El usuario denegó la solicitud de geolocalización. Por favor, permite el acceso a tu ubicación en la configuración del navegador.';
+                    errorMessage += 'El usuario denegó la solicitud de geolocalización.';
                     stopWatching();
                     break;
                 case error.POSITION_UNAVAILABLE:
                     errorMessage += 'La información de ubicación no está disponible.';
                     break;
                 case error.TIMEOUT:
-                    errorMessage += 'La solicitud para obtener la ubicación ha caducado. Inténtalo de nuevo.';
+                    errorMessage += 'La solicitud para obtener la ubicación ha caducado.';
                     break;
                 case error.UNKNOWN_ERROR:
                     errorMessage += 'Un error desconocido ocurrió.';
@@ -129,17 +146,16 @@
             locationDataDiv.innerHTML = '';
         }
 
-        // Función para iniciar el rastreo
         function startWatching() {
             if (navigator.geolocation) {
                 startButton.style.display = 'none';
                 stopButton.style.display = 'inline-block';
+                whatsappLink.style.display = 'flex';
                 statusDiv.textContent = 'Solicitando permiso de ubicación...';
 
-                // watchPosition inicia el rastreo continuo
                 watchId = navigator.geolocation.watchPosition(
-                    showPosition, // Función que se ejecuta con cada actualización
-                    showError,    // Función que se ejecuta si hay un error
+                    showPosition, 
+                    showError,    
                     {
                         enableHighAccuracy: true,
                         timeout: 10000,
@@ -151,13 +167,13 @@
             }
         }
 
-        // Función para detener el rastreo
         function stopWatching() {
             if (watchId) {
                 navigator.geolocation.clearWatch(watchId);
                 watchId = null;
                 startButton.style.display = 'inline-block';
                 stopButton.style.display = 'none';
+                whatsappLink.style.display = 'none';
                 statusDiv.textContent = 'Rastreo detenido.';
             }
         }
