@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compartir Ubicación</title>
+    <title>Ubicación en Tiempo Real</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -17,19 +17,32 @@
             color: #333;
             text-align: center;
         }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
         button {
             padding: 12px 25px;
             font-size: 1.1em;
-            background-color: #007bff;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s ease;
-            margin-top: 20px;
         }
-        button:hover {
-            background-color: #0056b3;
+        #startButton {
+            background-color: #28a745;
+        }
+        #startButton:hover {
+            background-color: #218838;
+        }
+        #stopButton {
+            background-color: #dc3545;
+            display: none; /* Inicialmente oculto */
+        }
+        #stopButton:hover {
+            background-color: #c82333;
         }
         #status {
             margin-top: 30px;
@@ -47,91 +60,110 @@
             max-width: 400px;
             word-wrap: break-word;
         }
-        #map-link, #whatsapp-link {
+        #map-link {
             display: block;
             margin-top: 15px;
             color: #007bff;
             text-decoration: none;
             font-weight: bold;
         }
-        #map-link:hover, #whatsapp-link:hover {
+        #map-link:hover {
             text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <h1>Obtener y Compartir tu Ubicación</h1>
-    <p>Haz clic en el botón para compartir tu ubicación. Se te pedirá permiso.</p>
-    <button id="getLocationButton">Obtener Ubicación</button>
+    <h1>Rastreo de Ubicación en Tiempo Real</h1>
+    <p>Haz clic en "Iniciar rastreo" para comenzar a recibir actualizaciones de tu ubicación.</p>
+    <div class="controls">
+        <button id="startButton">Iniciar Rastreo</button>
+        <button id="stopButton">Detener Rastreo</button>
+    </div>
     <div id="status"></div>
     <div id="location-data"></div>
 
     <script>
-        const getLocationButton = document.getElementById('getLocationButton');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
         const statusDiv = document.getElementById('status');
         const locationDataDiv = document.getElementById('location-data');
+        
+        let watchId; // Variable para almacenar el ID del rastreador
 
-        getLocationButton.addEventListener('click', () => {
+        // Función para mostrar la ubicación en la pantalla
+        function showPosition(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            const accuracy = position.coords.accuracy;
+
+            const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+
+            locationDataDiv.innerHTML = `
+                <p><strong>Latitud:</strong> ${latitude}</p>
+                <p><strong>Longitud:</strong> ${longitude}</p>
+                <p><strong>Precisión:</strong> Aproximadamente ${accuracy.toFixed(2)} metros</p>
+                <a id="map-link" href="${googleMapsUrl}" target="_blank">Ver en Google Maps</a>
+            `;
+            statusDiv.textContent = 'Actualizando ubicación...';
+        }
+
+        // Función para manejar errores
+        function showError(error) {
+            let errorMessage = 'Error al obtener la ubicación: ';
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMessage += 'El usuario denegó la solicitud de geolocalización. Por favor, permite el acceso a tu ubicación en la configuración del navegador.';
+                    stopWatching();
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMessage += 'La información de ubicación no está disponible.';
+                    break;
+                case error.TIMEOUT:
+                    errorMessage += 'La solicitud para obtener la ubicación ha caducado. Inténtalo de nuevo.';
+                    break;
+                case error.UNKNOWN_ERROR:
+                    errorMessage += 'Un error desconocido ocurrió.';
+                    break;
+            }
+            statusDiv.textContent = errorMessage;
+            locationDataDiv.innerHTML = '';
+        }
+
+        // Función para iniciar el rastreo
+        function startWatching() {
             if (navigator.geolocation) {
+                startButton.style.display = 'none';
+                stopButton.style.display = 'inline-block';
                 statusDiv.textContent = 'Solicitando permiso de ubicación...';
-                
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const latitude = position.coords.latitude;
-                        const longitude = position.coords.longitude;
-                        const accuracy = position.coords.accuracy; // Precisión en metros
 
-                        statusDiv.textContent = '¡Ubicación obtenida con éxito!';
-                        
-                        // **URL CORREGIDA PARA GOOGLE MAPS**
-                        const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-                        
-                        // Número de teléfono para WhatsApp (formato internacional sin el signo +)
-                        const phoneNumber = '50234896175'; 
-                        
-                        // Mensaje predefinido para WhatsApp
-                        const whatsappMessage = encodeURIComponent(`¡Hola! Mi ubicación actual es: Latitud ${latitude}, Longitud ${longitude}. Puedes verla aquí: ${googleMapsUrl}`);
-                        
-                        // URL para abrir WhatsApp
-                        const whatsappShareUrl = `https://wa.me/${phoneNumber}?text=${whatsappMessage}`;
-
-                        locationDataDiv.innerHTML = `
-                            <p><strong>Latitud:</strong> ${latitude}</p>
-                            <p><strong>Longitud:</strong> ${longitude}</p>
-                            <p><strong>Precisión:</strong> Aproximadamente ${accuracy.toFixed(2)} metros</p>
-                            <a id="map-link" href="${googleMapsUrl}" target="_blank">Ver en Google Maps</a>
-                            <a id="whatsapp-link" href="${whatsappShareUrl}" target="_blank">Compartir por WhatsApp</a>
-                        `;
-                    },
-                    (error) => {
-                        let errorMessage = 'Error al obtener la ubicación: ';
-                        switch(error.code) {
-                            case error.PERMISSION_DENIED:
-                                errorMessage += 'El usuario denegó la solicitud de geolocalización. Por favor, permite el acceso a tu ubicación en la configuración del navegador.';
-                                break;
-                            case error.POSITION_UNAVAILABLE:
-                                errorMessage += 'La información de ubicación no está disponible (ej. GPS/red desactivada, o señal débil).';
-                                break;
-                            case error.TIMEOUT:
-                                errorMessage += 'La solicitud para obtener la ubicación ha caducado. Inténtalo de nuevo.';
-                                break;
-                            case error.UNKNOWN_ERROR:
-                                errorMessage += 'Un error desconocido ocurrió.';
-                                break;
-                        }
-                        statusDiv.textContent = errorMessage;
-                        locationDataDiv.innerHTML = '';
-                    },
+                // watchPosition inicia el rastreo continuo
+                watchId = navigator.geolocation.watchPosition(
+                    showPosition, // Función que se ejecuta con cada actualización
+                    showError,    // Función que se ejecuta si hay un error
                     {
-                        enableHighAccuracy: true, 
-                        timeout: 15000,           
-                        maximumAge: 0             
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
                     }
                 );
             } else {
                 statusDiv.textContent = 'Tu navegador no soporta la geolocalización.';
             }
-        });
+        }
+
+        // Función para detener el rastreo
+        function stopWatching() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+                startButton.style.display = 'inline-block';
+                stopButton.style.display = 'none';
+                statusDiv.textContent = 'Rastreo detenido.';
+            }
+        }
+
+        startButton.addEventListener('click', startWatching);
+        stopButton.addEventListener('click', stopWatching);
     </script>
 </body>
 </html>
