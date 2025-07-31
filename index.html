@@ -94,92 +94,92 @@
     <div id="status"></div>
     <div id="location-data"></div>
 
-    <script>
-        const startButton = document.getElementById('startButton');
-        const stopButton = document.getElementById('stopButton');
-        const whatsappLink = document.getElementById('whatsapp-link');
-        const statusDiv = document.getElementById('status');
-        const locationDataDiv = document.getElementById('location-data');
-        
-        let watchId = null;
-        const phoneNumber = '50234896175'; // Número de teléfono de Guatemala sin el signo +
+   <script>
+    const startButton = document.getElementById('startButton');
+    const stopButton = document.getElementById('stopButton');
+    const statusDiv = document.getElementById('status');
+    const locationDataDiv = document.getElementById('location-data');
 
-        function showPosition(position) {
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-            const accuracy = position.coords.accuracy;
+    let watchId = null;
+    let lastSentTime = 0;
+    const phoneNumber = '50234896175'; // número destino sin signo +
 
-            const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-            const whatsappMessage = encodeURIComponent(`¡Hola! Mi ubicación actual es: Latitud ${latitude}, Longitud ${longitude}. Puedes verla aquí: ${googleMapsUrl}`);
-            const whatsappShareUrl = `https://wa.me/${phoneNumber}?text=${whatsappMessage}`;
+    function showPosition(position) {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
 
-            locationDataDiv.innerHTML = `
-                <p><strong>Latitud:</strong> ${latitude}</p>
-                <p><strong>Longitud:</strong> ${longitude}</p>
-                <p><strong>Precisión:</strong> Aproximadamente ${accuracy.toFixed(2)} metros</p>
-                <a id="map-link" href="${googleMapsUrl}" target="_blank">Ver en Google Maps</a>
-            `;
-            statusDiv.textContent = 'Rastreo activo. Ubicación actualizada.';
-            
-            // Actualizar el enlace de WhatsApp con la nueva ubicación
-            whatsappLink.href = whatsappShareUrl;
+        const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+        const whatsappMessage = encodeURIComponent(`¡Hola! Mi ubicación actual es: Latitud ${latitude}, Longitud ${longitude}. Puedes verla aquí: ${googleMapsUrl}`);
+        const whatsappShareUrl = `https://wa.me/${phoneNumber}?text=${whatsappMessage}`;
+
+        locationDataDiv.innerHTML = `
+            <p><strong>Latitud:</strong> ${latitude}</p>
+            <p><strong>Longitud:</strong> ${longitude}</p>
+            <p><strong>Precisión:</strong> ~${accuracy.toFixed(2)} m</p>
+            <a id="map-link" href="${googleMapsUrl}" target="_blank">Ver en Google Maps</a>
+        `;
+        statusDiv.textContent = 'Rastreo activo. Ubicación actualizada.';
+
+        const now = Date.now();
+        if (now - lastSentTime > 60000) { // mínimo 1 minuto entre envíos
+            lastSentTime = now;
+            window.open(whatsappShareUrl, '_blank');
         }
+    }
 
-        function showError(error) {
-            let errorMessage = 'Error al obtener la ubicación: ';
-            switch(error.code) {
-                case error.PERMISSION_DENIED:
-                    errorMessage += 'El usuario denegó la solicitud de geolocalización.';
-                    stopWatching();
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    errorMessage += 'La información de ubicación no está disponible.';
-                    break;
-                case error.TIMEOUT:
-                    errorMessage += 'La solicitud para obtener la ubicación ha caducado.';
-                    break;
-                case error.UNKNOWN_ERROR:
-                    errorMessage += 'Un error desconocido ocurrió.';
-                    break;
-            }
-            statusDiv.textContent = errorMessage;
-            locationDataDiv.innerHTML = '';
+    function showError(error) {
+        let errorMessage = 'Error al obtener ubicación: ';
+        switch(error.code) {
+            case error.PERMISSION_DENIED:
+                errorMessage += 'Permiso denegado.';
+                stopWatching();
+                break;
+            case error.POSITION_UNAVAILABLE:
+                errorMessage += 'Ubicación no disponible.';
+                break;
+            case error.TIMEOUT:
+                errorMessage += 'Tiempo agotado.';
+                break;
+            default:
+                errorMessage += 'Error desconocido.';
         }
+        statusDiv.textContent = errorMessage;
+        locationDataDiv.innerHTML = '';
+    }
 
-        function startWatching() {
-            if (navigator.geolocation) {
-                startButton.style.display = 'none';
-                stopButton.style.display = 'inline-block';
-                whatsappLink.style.display = 'flex';
-                statusDiv.textContent = 'Solicitando permiso de ubicación...';
+    function startWatching() {
+        if (navigator.geolocation) {
+            startButton.style.display = 'none';
+            stopButton.style.display = 'inline-block';
+            statusDiv.textContent = 'Solicitando permiso...';
 
-                watchId = navigator.geolocation.watchPosition(
-                    showPosition, 
-                    showError,    
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 0
-                    }
-                );
-            } else {
-                statusDiv.textContent = 'Tu navegador no soporta la geolocalización.';
-            }
+            watchId = navigator.geolocation.watchPosition(
+                showPosition,
+                showError,
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        } else {
+            statusDiv.textContent = 'Tu navegador no soporta geolocalización.';
         }
+    }
 
-        function stopWatching() {
-            if (watchId) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-                startButton.style.display = 'inline-block';
-                stopButton.style.display = 'none';
-                whatsappLink.style.display = 'none';
-                statusDiv.textContent = 'Rastreo detenido.';
-            }
+    function stopWatching() {
+        if (watchId) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+            startButton.style.display = 'inline-block';
+            stopButton.style.display = 'none';
+            statusDiv.textContent = 'Rastreo detenido.';
         }
+    }
 
-        startButton.addEventListener('click', startWatching);
-        stopButton.addEventListener('click', stopWatching);
-    </script>
+    startButton.addEventListener('click', startWatching);
+    stopButton.addEventListener('click', stopWatching);
+</script>
 </body>
 </html>
